@@ -10,7 +10,8 @@ const config = {
   scene: {
     preload: preload,
     create: create,
-    update: update
+    update: update,
+    worldToMap
   }
 };
 
@@ -59,7 +60,34 @@ function create() {
   //Collision
   player.body.collideWorldBounds = true;
   this.physics.add.collider(player, this.layer2);
+
+  this.text = this.add.text(10, 10, 'Cursors to move', { font: '16px Courier', fill: '#00ff00' }).setScrollFactor(0);
 }
+
+var focusedTile = null;
+var focusedTile2 = null;
+
+function worldToMap(x, y, layer){
+  var cell = {x: 0, y: 0};
+
+  var x_pos = (x - 32 - layer.x) / layer.baseTileWidth;
+  var y_pos = (y - 48 - layer.y) / layer.baseTileHeight;
+
+  cell.y = Math.round(y_pos - x_pos);
+  cell.x = Math.round(x_pos + y_pos);
+
+  return cell;
+}
+
+function mapToWorld(x, y, layer){
+  var pos = {x: 0, y: 0};
+
+  pos.x = (x - y) * layer.baseTileWidth / 2 + 32 + layer.x;
+  pos.y = (x + y) * layer.baseTileHeight / 2 + 48 + layer.y;
+
+  return pos;
+}
+
 
 function update() {
   // Stop any previous movement from the last frame
@@ -78,19 +106,36 @@ function update() {
   } else if (cursors.down.isDown) {
     player.body.setVelocityY(100);
   }
+  
+  var coordsPointerInMap = worldToMap(this.MousePointer.x, this.MousePointer.y, this.layer1.layer);
+  if(focusedTile){
+    focusedTile.setVisible(true);
+  }
+  if(coordsPointerInMap.x >= 0 && coordsPointerInMap.y >= 0 && coordsPointerInMap.x < this.layer1.layer.width && coordsPointerInMap.y < this.layer1.layer.height){
+    focusedTile = this.layer1.getTileAt(coordsPointerInMap.x, coordsPointerInMap.y);
+    focusedTile.setVisible(false);
+  }
 
   if(this.MousePointer.isDown && !this.playerIsMoving){
+    /*
+    var targetPos = mapToWorld(focusedTile.x, focusedTile.y, this.layer1.layer);
+    player.x = targetPos.x;
+    player.y = targetPos.y - player.height/2;
+    */
+    focusedTile.setVisible(true);
     this.playerIsMoving = true;
-    var coordsPointerInMap = this.layer1.worldToTileXY(this.MousePointer.x, this.MousePointer.y);
-    coordsPointerInMap.x = Math.floor(coordsPointerInMap.x);
-    coordsPointerInMap.y = Math.floor(coordsPointerInMap.y);
-    var coordsPlayerInMap = this.layer1.worldToTileXY(player.x, player.y);
-    coordsPlayerInMap.x = Math.floor(coordsPlayerInMap.x);
-    coordsPlayerInMap.y = Math.floor(coordsPlayerInMap.y);
+    var coordsPointerInMap = worldToMap(this.MousePointer.x, this.MousePointer.y, this.layer1.layer);
+    var coordsPlayerInMap = worldToMap(player.x, player.y + player.height/2, this.layer1.layer);
+    var test = mapToWorld(4, 6, this.layer1.layer);
+    test = worldToMap(test.x, test.y, this.layer1.layer);
     this.path = findPathTo(coordsPlayerInMap, coordsPointerInMap, this.layer1, this.layer2);
+    if(this.path.length > 0){
+      for(let i=0; i < this.path.length; i++){
+        this.layer1.getTileAt(this.path[i].x, this.path[i].y).setVisible(false);
+      }
+    }
     console.log(this.path);
-    console.log(this.path.length);
-  }
+  } 
 
   if(this.playerIsMoving){
     let dx = 0;
@@ -99,15 +144,17 @@ function update() {
     if (!this.nextTileInPath && this.path.length > 0){
       this.nextTileInPath = getNextTileInPath(this.path);
     }
-    else if(!this.nextTileInPath && this.path.length <= 0){
+    else if(!this.nextTileInPath && this.path.length === 0){
       this.playerIsMoving = false;
       return;
     }
 
-    this.physics.moveTo(player, this.nextTileInPath.x, this.nextTileInPath.y, 100)
+    var nextPos = mapToWorld(this.nextTileInPath.x, this.nextTileInPath.y, this.layer1.layer);
+    nextPos.y -= player.height/2;
+    this.physics.moveTo(player, nextPos.x, nextPos.y, 100);
 
-    dx = this.nextTileInPath.x - player.x;
-    dy = this.nextTileInPath.y - player.y;
+    dx = nextPos.x - player.x;
+    dy = nextPos.y - player.y;
 
     if(Math.abs(dx) < 5){
       dx = 0;
@@ -119,13 +166,22 @@ function update() {
 
     if(dx === 0 && dy === 0){
       if(this.path.length > 0){
+        this.layer1.getTileAt(this.nextTileInPath.x, this.nextTileInPath.y).setVisible(true);
         this.nextTileInPath = this.path.shift();
       }
       else{
         this.playerIsMoving = false;
+        this.nextTileInPath = null;
       }
     }
   }
+
+  this.text.setText([
+    'screen x: ' + this.input.x,
+    'screen y: ' + this.input.y,
+    'world x: ' + this.input.mousePointer.worldX,
+    'world y: ' + this.input.mousePointer.worldY
+  ]);
 }
 
 /*
@@ -145,7 +201,7 @@ function findPathTo(start, target, groundLayer, collisionsLayer){
     return [];
   }
 
-  if(collisionsLayer.layer.data[target.x][target.y].index !== -1){
+  if(collisionsLayer.layer.data[target.y][target.x].index !== -1){
     return [];
   }
 
@@ -182,21 +238,21 @@ function findPathTo(start, target, groundLayer, collisionsLayer){
         continue;
       }
 
-      if(collisionTile){
+      if(collisionTile !== null){
         continue;
       }
 
-      const key = coordsToKey(neighbor.x, neighbor.y);
+      const neighborKey = coordsToKey(neighbor.x, neighbor.y);
 
-      if(key in parentForKey){
+      if(neighborKey in parentForKey){
         continue;
       }
 
-      parentForKey[key] = {key: currentKey, position: {x: currentX, y: currentY}};
+      parentForKey[neighborKey] = {key: currentKey, position: {x: currentX, y: currentY}};
       
       queue.push(neighbor);
 
-      if(currentKey === targetKey){
+      if(neighborKey === targetKey){
         break;
       }
     }
@@ -210,24 +266,24 @@ function findPathTo(start, target, groundLayer, collisionsLayer){
     return [];   
   }
 
+  path.push(target);
   currentKey = targetKey;
   currentPos = parentForKey[targetKey].position;
 
   while(currentKey !== startKey){
-    console.log(groundLayer.getTileAt(currentPos.x, currentPos.y));
-    var pos = groundLayer.tileToWorldXY(currentPos.x, currentPos.y);
 
-    path.push(pos);
+    path.push(currentPos);
 
     currentKey = parentForKey[currentKey].key;
     currentPos = parentForKey[currentKey].position;
   }
 
+
   return path.reverse();
 }
 
 function getNextTileInPath(path){
-  if(!path || path.length <= 0){
+  if(!path || path.length === 0){
     return;
   }
   
