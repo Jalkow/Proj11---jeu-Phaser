@@ -23,24 +23,13 @@ var tileSize = 64;
 function preload() {
   //preloading assets
   this.load.image('tiles', 'assets/iso-64x64-building.png');
-  this.load.image('button', 'assets/bomb.png');
-  this.load.image('logo', 'assets/logo.png');
+  this.load.image('button', 'assets/logo.png');
+  this.load.image('logo', 'assets/logoborder.png');
   this.load.tilemapTiledJSON('map', 'assets/untitled.json');
   this.load.image('test', 'assets/phaser-dude.png')
 }
 
 function create() {
-  //popup
-  this.popupIsOpen = false;
-  this.popup = this.add.sprite(700, 700, "logo");
-  this.popup.alpha = 0;
-  this.closePopup = this.add.sprite(this.popup.x + this.popup.width / 2, this.popup.y - this.popup.height / 2, 'button')
-    .setInteractive()
-    .on('pointerdown', () => this.managePopup());
-  this.closePopup.alpha = 0;
-  this.clickButton = this.add.sprite(1000, 1000, 'button')
-    .setInteractive()
-    .on('pointerdown', () => this.managePopup());
   
   //Map Tile iso
   var map = this.add.tilemap('map');
@@ -57,10 +46,30 @@ function create() {
   this.path = [];
   this.nextTileInPath = undefined;
 
-  //Collision
-  player.body.collideWorldBounds = true;
-  this.physics.add.collider(player, this.layer2);
+  //popup
+  this.popupIsOpen = false;
+  this.clickButton = this.add.sprite(400, 400, 'button')
+    .setInteractive()
+    .on('pointerup', () => managePopup(this));
 
+  this.popupbg = this.add.sprite(600, 300, "logo");
+  this.popupbg.alpha = 0;
+
+  this.closePopup = this.add.sprite(this.popupbg.x + this.popupbg.width / 2, this.popupbg.y - this.popupbg.height / 2, 'button')
+    .setInteractive()
+    .on('pointerdown', () => managePopup(this));
+  this.closePopup.alpha = 0;
+
+  this.popupAction = this.add.sprite(this.popupbg.x, this.popupbg.y, "test")
+    .setInteractive()
+    .on('pointerdown', () => {
+      this.layer2.putTileAt(-1, 6, 6)
+      managePopup(this);
+    })
+  this.popupAction.alpha = 0;
+  this.popupAction.setActive(false);
+  
+  //Text positions
   this.text = this.add.text(10, 10, 'Cursors to move', { font: '16px Courier', fill: '#00ff00' }).setScrollFactor(0);
 }
 
@@ -92,20 +101,6 @@ function mapToWorld(x, y, layer){
 function update() {
   // Stop any previous movement from the last frame
   player.body.setVelocity(0);
-
-  // Horizontal movement
-  if (cursors.left.isDown) {
-    player.body.setVelocityX(-100);
-  } else if (cursors.right.isDown) {
-    player.body.setVelocityX(100);
-  }
-
-  // Vertical movement
-  if (cursors.up.isDown) {
-    player.body.setVelocityY(-100);
-  } else if (cursors.down.isDown) {
-    player.body.setVelocityY(100);
-  }
   
   var coordsPointerInMap = worldToMap(this.MousePointer.x, this.MousePointer.y, this.layer1.layer);
   if(focusedTile){
@@ -118,6 +113,7 @@ function update() {
 
   if(this.MousePointer.isDown && !this.playerIsMoving){
     /*
+    
     var targetPos = mapToWorld(focusedTile.x, focusedTile.y, this.layer1.layer);
     player.x = targetPos.x;
     player.y = targetPos.y - player.height/2;
@@ -126,8 +122,6 @@ function update() {
     this.playerIsMoving = true;
     var coordsPointerInMap = worldToMap(this.MousePointer.x, this.MousePointer.y, this.layer1.layer);
     var coordsPlayerInMap = worldToMap(player.x, player.y + player.height/2, this.layer1.layer);
-    var test = mapToWorld(4, 6, this.layer1.layer);
-    test = worldToMap(test.x, test.y, this.layer1.layer);
     this.path = findPathTo(coordsPlayerInMap, coordsPointerInMap, this.layer1, this.layer2);
     if(this.path.length > 0){
       for(let i=0; i < this.path.length; i++){
@@ -183,12 +177,6 @@ function update() {
     'world y: ' + this.input.mousePointer.worldY
   ]);
 }
-
-/*
-function estimatedCostBetween(ColA, RowA, ColB, RowB){
-  return Math.abs(ColA - ColB) + Math.abs(RowA - RowB);
-}
-*/
 
 function coordsToKey(x, y){
   return x + 'xXx' + y
@@ -290,55 +278,19 @@ function getNextTileInPath(path){
   return path.shift();
 }
 
-/*
-function movePlayerToTile(startCol, startRow, destCol, destRow, mapLayer, scenePhysics){
-  var visitedTiles = [];
-  var currentTile = {x:startCol, y:startRow, costToHere:0, costToDest:destCol + destRow, cost:1};
-  var previousTile;
-
-  while(currentTile.x !== destCol && currentTile.y !== destRow){
-    foundNextNode = false;
-    
-    const neighbors = [{x:currentTile.x + 1, y:currentTile.y, costToHere:currentTile.costToHere + 1, costToDest: estimatedCostBetween(currentTile.x + 1, currentTile.y, destCol, destRow), cost:1},             //droite
-                       {x:currentTile.x - 1, y:currentTile.y, costToHere:currentTile.costToHere + 1, costToDest: estimatedCostBetween(currentTile.x - 1, currentTile.y, destCol, destRow), cost:1},             //gauche
-                       {x:currentTile.x, y:currentTile.y - 1, costToHere:currentTile.costToHere + 1, costToDest: estimatedCostBetween(currentTile.x, currentTile.y + 1, destCol, destRow), cost:1},             //haut
-                       {x:currentTile.x, y:currentTile.y + 1, costToHere:currentTile.costToHere + 1, costToDest: estimatedCostBetween(currentTile.x, currentTile.y - 1, destCol, destRow), cost:1},             //bas
-                       {x:currentTile.x + 1, y:currentTile.y - 1, costToHere:currentTile.costToHere + 0.5, costToDest: estimatedCostBetween(currentTile.x + 1, currentTile.y - 1, destCol, destRow), cost:0.5}, //haut-droite
-                       {x:currentTile.x - 1, y:currentTile.y - 1, costToHere:currentTile.costToHere + 0.5, costToDest: estimatedCostBetween(currentTile.x - 1, currentTile.y - 1, destCol, destRow), cost:0.5}, //haut-gauche
-                       {x:currentTile.x + 1, y:currentTile.y + 1, costToHere:currentTile.costToHere + 0.5, costToDest: estimatedCostBetween(currentTile.x + 1, currentTile.y + 1, destCol, destRow), cost:0.5}, //bas-droite
-                       {x:currentTile.x - 1, y:currentTile.y + 1, costToHere:currentTile.costToHere + 0.5, costToDest: estimatedCostBetween(currentTile.x - 1, currentTile.y + 1, destCol, destRow), cost:0.5}, //bas-gauche
-    ]
-
-    for(i=0; i < neighbors.length; i++){
-      if((neighbors[i].costToHere + neighbors[i].costToDest < currentTile.costToHere + currentTile.costToDest)
-          && mapLayer.layer.data[neighbors[i].x + 10*neighbors[i].y] !== 3){
-        previousTile = currentTile;
-        currentTile = neighbors[i];
-        visitedTiles.push(currentTile);
-        foundNextNode = true;
-      }
-    }
-
-    if(!foundNextNode){
-      currentTile = previousTile;
-    }
-  }
-
-  for(i=0; i<visitedTiles.length; i++){
-    scenePhysics.moveTo(player, mapLayer.offsetx + visitedTiles[i].x * tileSize, visitedTiles[i].y * 32);
-  }
-}
-*/
-
-function managePopup() {
+function managePopup(level) {
   //popup fonction
-  if (this.popupIsOpen != true) {
-    this.popupIsOpen = true;
-    this.popup.alpha = 1;
-    this.closePopup.alpha = 1;
+  if (level.popupIsOpen != true) {
+    level.popupIsOpen = true;
+    level.popupbg.alpha = 1;
+    level.closePopup.alpha = 1;
+    level.popupAction.alpha = 1;
+    level.popupAction.setActive(true);
     return;
   }
-  this.popup.alpha = 0;
-  this.closePopup.alpha = 0;
-  this.popupIsOpen = false;
+  level.popupbg.alpha = 0;
+  level.closePopup.alpha = 0;
+  level.popupIsOpen = false;
+  level.popupAction.alpha = 0;
+  level.popupAction.setActive(false);
 }
