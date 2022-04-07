@@ -1,0 +1,14 @@
+{ "columns":2,
+ "image":"..\/..\/js.phaser_game_main\/public\/assets\/TestRobin.png",
+ "imageheight":39,
+ "imagewidth":64,
+ "margin":0,
+ "name":"TestRobin",
+ "spacing":0,
+ "tilecount":2,
+ "tiledversion":"1.8.2",
+ "tileheight":32,
+ "tilewidth":32,
+ "type":"tileset",
+ "version":"1.8"
+}

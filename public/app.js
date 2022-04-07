@@ -22,24 +22,41 @@ var tileSize = 64;
 
 function preload() {
   //preloading assets
-  this.load.image('tiles', 'assets/iso-64x64-building.png');
+  this.load.image('ground', 'Assets/iso-64x64-building.png');
+  this.load.tilemapTiledJSON('map', 'Assets/untitled.json');
+  this.load.image('player', 'Assets/fantome_dirdb.png')
   this.load.image('button', 'assets/logo.png');
   this.load.image('logo', 'assets/logoborder.png');
-  this.load.tilemapTiledJSON('map', 'assets/untitled.json');
-  this.load.image('test', 'assets/phaser-dude.png')
 }
 
 function create() {
-  
+
   //Map Tile iso
   var map = this.add.tilemap('map');
-  var tileset1 = map.addTilesetImage('nom', 'tiles');
+  var tileset1 = map.addTilesetImage('nom', 'ground');
   this.layer1 = map.createLayer('Tile Layer 1', [tileset1]);
   this.layer2 = map.createLayer('Tile Layer 2', [tileset1]);
 
+  //map without iso
+  this.layer1TilesArray = []
+  var counterCol = 0;
+  var counterRow = -1;
+  this.layer1.forEachTile((actualTile) => {
+    if(counterCol === 0){
+      this.layer1TilesArray.push([]);
+      counterRow++;
+    }
+    counterCol++;
+    this.layer1TilesArray[counterRow].push(actualTile);
+    this.add.image()
+    if(counterCol === 20){
+      counterCol = 0;
+    }
+  })
+  console.log(this.layer1TilesArray);
 
   //Player and controls
-  player = this.physics.add.sprite(500, 300, 'test')
+  player = this.physics.add.sprite(500, 300, 'player')
   cursors = this.input.keyboard.createCursorKeys()
   this.MousePointer = this.input.activePointer;
   this.playerIsMoving = false;
@@ -47,34 +64,33 @@ function create() {
   this.nextTileInPath = undefined;
 
   //popup
-  this.popupIsOpen = false;
+  this.popup1 = {isOpen: false, bg: null, closeButton: null, action: null}
   this.clickButton = this.add.sprite(400, 400, 'button')
     .setInteractive()
-    .on('pointerup', () => managePopup(this));
+    .on('pointerdown', () => managePopup(this.popup1));
 
-  this.popupbg = this.add.sprite(600, 300, "logo");
-  this.popupbg.alpha = 0;
+  this.popup1.bg = this.add.sprite(600, 300, "logo");
+  this.popup1.bg.alpha = 0;
 
-  this.closePopup = this.add.sprite(this.popupbg.x + this.popupbg.width / 2, this.popupbg.y - this.popupbg.height / 2, 'button')
+  this.popup1.closeButton = this.add.sprite(this.popup1.bg.x + this.popup1.bg.width / 2, this.popup1.bg.y - this.popup1.bg.height / 2, 'button')
     .setInteractive()
-    .on('pointerdown', () => managePopup(this));
-  this.closePopup.alpha = 0;
+    .on('pointerdown', () => managePopup(this.popup1));
+  this.popup1.closeButton.alpha = 0;
 
-  this.popupAction = this.add.sprite(this.popupbg.x, this.popupbg.y, "test")
+  this.popup1.action = this.add.sprite(this.popup1.bg.x, this.popup1.bg.y, "player")
     .setInteractive()
     .on('pointerdown', () => {
       this.layer2.putTileAt(-1, 6, 6)
-      managePopup(this);
+      managePopup(this.popup1);
     })
-  this.popupAction.alpha = 0;
-  this.popupAction.setActive(false);
+  this.popup1.action.alpha = 0;
+  this.popup1.action.setActive(false);
   
   //Text positions
   this.text = this.add.text(10, 10, 'Cursors to move', { font: '16px Courier', fill: '#00ff00' }).setScrollFactor(0);
 }
 
 var focusedTile = null;
-var focusedTile2 = null;
 
 function worldToMap(x, y, layer){
   var cell = {x: 0, y: 0};
@@ -278,19 +294,19 @@ function getNextTileInPath(path){
   return path.shift();
 }
 
-function managePopup(level) {
+function managePopup(popup) {
   //popup fonction
-  if (level.popupIsOpen != true) {
-    level.popupIsOpen = true;
-    level.popupbg.alpha = 1;
-    level.closePopup.alpha = 1;
-    level.popupAction.alpha = 1;
-    level.popupAction.setActive(true);
+  if (popup.isOpen != true) {
+    popup.isOpen = true;
+    popup.bg.alpha = 1;
+    popup.closeButton.alpha = 1;
+    popup.action.alpha = 1;
+    popup.action.setActive(true);
     return;
   }
-  level.popupbg.alpha = 0;
-  level.closePopup.alpha = 0;
-  level.popupIsOpen = false;
-  level.popupAction.alpha = 0;
-  level.popupAction.setActive(false);
+  popup.bg.alpha = 0;
+  popup.closeButton.alpha = 0;
+  popup.isOpen = false;
+  popup.action.alpha = 0;
+  popup.action.setActive(false);
 }
