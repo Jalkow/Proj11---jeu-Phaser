@@ -37,27 +37,13 @@ function create() {
   this.layer1 = map.createLayer('Tile Layer 1', [tileset1]);
   this.layer2 = map.createLayer('Tile Layer 2', [tileset1]);
 
-  //map without iso
-  this.layer1TilesArray = []
-  var counterCol = 0;
-  var counterRow = -1;
-  this.layer1.forEachTile((actualTile) => {
-    if(counterCol === 0){
-      this.layer1TilesArray.push([]);
-      counterRow++;
-    }
-    counterCol++;
-    this.layer1TilesArray[counterRow].push(actualTile);
-    this.add.image()
-    if(counterCol === 20){
-      counterCol = 0;
-    }
-  })
-  console.log(this.layer1TilesArray);
+  //map without tilemap for depth sorting
+  createTileImages(this);
+  
+  
 
   //Player and controls
   player = this.physics.add.sprite(500, 300, 'player')
-  cursors = this.input.keyboard.createCursorKeys()
   this.MousePointer = this.input.activePointer;
   this.playerIsMoving = false;
   this.path = [];
@@ -309,4 +295,14 @@ function managePopup(popup) {
   popup.isOpen = false;
   popup.action.alpha = 0;
   popup.action.setActive(false);
+}
+
+function createTileImages(level){
+  level.layer2TileImages = [];
+  for(let y = 0; y < level.layer2.height; y++){
+    level.layer2TileImages[y] = [];
+    for(let x = 0; x < level.layer2.width; x++){
+       
+    }
+  }
 }
